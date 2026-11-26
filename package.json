@@ -1,0 +1,15 @@
+{
+  "name": "mini-number-connect",
+  "version": "1.0.0",
+  "private": true,
+  "description": "数字连连看 · 微信小游戏（含好友房联机服务与浏览器预览）",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "dev": "node tools/dev-server.js",
+    "server": "node server/server.js",
+    "build:web": "node tools/build-web.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

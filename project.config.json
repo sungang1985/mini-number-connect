@@ -1,0 +1,25 @@
+{
+  "description": "数字连连看：两人同纸、一笔连数、碰线即负",
+  "compileType": "game",
+  "appid": "请替换为你的小游戏AppID",
+  "projectname": "mini-number-connect",
+  "libVersion": "3.5.0",
+  "setting": {
+    "es6": true,
+    "enhance": true,
+    "postcss": false,
+    "minified": true,
+    "urlCheck": true
+  },
+  "packOptions": {
+    "ignore": [
+      { "type": "folder", "value": "server" },
+      { "type": "folder", "value": "tools" },
+      { "type": "folder", "value": "test" },
+      { "type": "folder", "value": "node_modules" },
+      { "type": "file", "value": "package.json" },
+      { "type": "file", "value": "package-lock.json" },
+      { "type": "file", "value": "README.md" }
+    ]
+  }
+}
