@@ -2,12 +2,12 @@
 const C = require('./consts');
 const { makeRng } = require('./rng');
 
-// 由种子生成一张纸：1..pairs 每个数字恰好两枚，位置随意，
+// 由种子生成一张纸：values 里每个数字恰好两枚，位置随意，
 // 只保证彼此留出方便辨认和落指的间距。
-function makeLayout(seed, pairs) {
+function makeLayout(seed, list) {
   const rng = makeRng(seed);
-  const count = pairs * 2;
-  const minGap = C.R * 2 + C.INK * 4; // 再挤也要给两枚数字之间留一条能走线的缝
+  const count = list.length * 2;
+  const minGap = C.MIN_GAP; // 再挤也要给两枚数字之间留一条能走线的缝
   let gap = 170;
   let pts = [];
   while (pts.length < count) {
@@ -26,7 +26,7 @@ function makeLayout(seed, pairs) {
     if (pts.length < count) gap = Math.max(minGap, gap - 10);
   }
   const values = [];
-  for (let v = 1; v <= pairs; v++) values.push(v, v);
+  for (const v of list) values.push(v, v);
   for (let i = values.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
     const t = values[i]; values[i] = values[j]; values[j] = t;

@@ -25,10 +25,15 @@ class App {
     this.toastMsg = null;
     this.net = null;
     this.lastRoomQuery = null;
-    this.opts = { pairs: C.DEFAULT_PAIRS, timed: false };
+    // 设置：纸上有哪些数字、线条粗细、是否限时
+    this.opts = { values: C.cleanValues(null), ink: C.INK, timed: false };
     try {
       const saved = wx.getStorageSync('nc_opts');
-      if (saved && saved.pairs >= C.MIN_PAIRS && saved.pairs <= C.MAX_PAIRS) this.opts = { pairs: saved.pairs, timed: !!saved.timed };
+      if (saved) {
+        let values = saved.values;
+        if (!values && saved.pairs) { values = []; for (let v = 1; v <= saved.pairs; v++) values.push(v); } // 旧版存档
+        this.opts = { values: C.cleanValues(values), ink: C.cleanInk(saved.ink), timed: !!saved.timed };
+      }
     } catch (e) { /* 首次进入 */ }
     this.measure();
     this.scene = new Menu(this);
@@ -135,7 +140,7 @@ class App {
 
   startLocal() {
     this.go(new Play(this, {
-      mode: 'local', seed: randomSeed(), pairs: this.opts.pairs, timed: this.opts.timed,
+      mode: 'local', seed: randomSeed(), values: this.opts.values.slice(), ink: this.opts.ink, timed: this.opts.timed,
       first: Math.random() < 0.5 ? 0 : 1 // 谁先画由开局随机决定
     }));
   }
@@ -158,8 +163,8 @@ class App {
 
   hostRoom() {
     if (!this.connect()) return;
-    this.net.send({ t: 'create', pairs: this.opts.pairs, timed: this.opts.timed });
-    this.go(new Room(this, { hosting: true, pairs: this.opts.pairs, timed: this.opts.timed }));
+    this.net.send({ t: 'create', values: this.opts.values, ink: this.opts.ink, timed: this.opts.timed });
+    this.go(new Room(this, { hosting: true, values: this.opts.values, ink: this.opts.ink, timed: this.opts.timed }));
   }
 
   joinRoom(id) {
@@ -175,7 +180,7 @@ class App {
       if (this.scene instanceof Room) this.scene.roomId = m.id;
     } else if (m.t === 'start') {
       this.go(new Play(this, {
-        mode: 'online', seat: m.seat, seed: m.seed, pairs: m.pairs, timed: !!m.timed, first: m.first
+        mode: 'online', seat: m.seat, seed: m.seed, values: C.cleanValues(m.values), ink: C.cleanInk(m.ink), timed: !!m.timed, first: m.first
       }));
     } else if (m.t === 'err') {
       this.toast(ERR_TEXT[m.code] || '联机出错');

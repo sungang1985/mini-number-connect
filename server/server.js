@@ -9,13 +9,13 @@
 const http = require('http');
 const { WebSocketServer } = require('ws');
 
-const MIN_PAIRS = 4, MAX_PAIRS = 9;
+const C = require('../js/core/consts'); // 与客户端共用同一份设置校验
 const ROOM_IDLE_MS = 30 * 60 * 1000;
 const MAX_ROOMS = 5000;
 
 function createRelay(wssOptions) {
   const wss = new WebSocketServer(Object.assign({ maxPayload: 64 * 1024 }, wssOptions));
-  const rooms = new Map(); // id -> {id, seats:[ws,ws], pairs, timed, seed, first, votes:[mode,mode], playing, touched}
+  const rooms = new Map(); // id -> {id, seats:[ws,ws], values, ink, timed, seed, first, votes:[mode,mode], playing, touched}
 
   const send = (ws, obj) => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj)); };
   const newSeed = () => (Math.floor(Math.random() * 0x7fffffff) + 1);
@@ -36,7 +36,7 @@ function createRelay(wssOptions) {
     room.votes = [null, null];
     room.touched = Date.now();
     room.seats.forEach((ws, seat) => send(ws, {
-      t: 'start', seat, seed: room.seed, first: room.first, pairs: room.pairs, timed: room.timed
+      t: 'start', seat, seed: room.seed, first: room.first, values: room.values, ink: room.ink, timed: room.timed
     }));
   }
 
@@ -58,8 +58,7 @@ function createRelay(wssOptions) {
       case 'create': {
         leave(ws);
         if (rooms.size >= MAX_ROOMS) return send(ws, { t: 'err', code: 'full' });
-        const pairs = Math.min(MAX_PAIRS, Math.max(MIN_PAIRS, Math.floor(Number(m.pairs)) || 6));
-        const r = { id: newRoomId(), seats: [ws, null], pairs, timed: !!m.timed, seed: 0, first: 0, votes: [null, null], playing: false, touched: Date.now() };
+        const r = { id: newRoomId(), seats: [ws, null], values: C.cleanValues(m.values), ink: C.cleanInk(m.ink), timed: !!m.timed, seed: 0, first: 0, votes: [null, null], playing: false, touched: Date.now() };
         rooms.set(r.id, r);
         ws.room = r; ws.seat = 0;
         return send(ws, { t: 'room', id: r.id });

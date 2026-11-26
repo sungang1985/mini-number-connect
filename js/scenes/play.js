@@ -11,19 +11,20 @@ const PEEK_MS = 1300;    // 点一下数字后，另一枚亮起的时长
 const RESULT_DELAY = 600;
 
 class Play {
-  // o: {mode:'local'|'online', seat, seed, pairs, timed, first}
+  // o: {mode:'local'|'online', seat, seed, values, ink, timed, first}
   constructor(app, o) {
     this.app = app;
     this.mode = o.mode;
     this.seat = o.seat || 0;
     this.timed = !!o.timed;
-    this.pairs = o.pairs;
+    this.values = o.values;
+    this.ink = o.ink;
     this.peerLeft = false;
     this.setup(o.seed, o.first);
   }
 
   setup(seed, first) {
-    this.game = new Game({ seed, pairs: this.pairs, first });
+    this.game = new Game({ seed, values: this.values, ink: this.ink, first });
     this.pending = null;   // 按下了某个数字、尚未正式起笔
     this.drawing = false;  // 本机手指正在画
     this.peek = null;      // {value, until}
@@ -83,7 +84,7 @@ class Play {
   touchMove(p) {
     const g = this.game;
     const q = this.toPaper(p);
-    const x = clamp(Math.round(q.x), C.EDGE, C.W - C.EDGE), y = clamp(Math.round(q.y), C.EDGE, C.H - C.EDGE);
+    const x = clamp(Math.round(q.x), g.edge, C.W - g.edge), y = clamp(Math.round(q.y), g.edge, C.H - g.edge);
     if (this.pending && !this.drawing) {
       const s = this.pending;
       if ((x - s.x) * (x - s.x) + (y - s.y) * (y - s.y) < C.STEP * C.STEP) return;
@@ -220,7 +221,7 @@ class Play {
     for (let i = 2; i < pts.length; i += 2) ctx.lineTo(L.x + pts[i] * L.s, L.y + pts[i + 1] * L.s);
     if (pts.length === 2) ctx.lineTo(L.x + pts[0] * L.s + 0.01, L.y + pts[1] * L.s);
     // 画出来的线宽就是判定用的线宽：看得见的墨迹相触才算撞线
-    ctx.lineWidth = C.INK * L.s;
+    ctx.lineWidth = this.game.ink * L.s;
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     ctx.strokeStyle = color;
     ctx.stroke();
@@ -270,7 +271,7 @@ class Play {
       ctx.translate(L.x + n.x * L.s, L.y + n.y * L.s);
       ctx.rotate(n.tilt);
       const active = g.cur && g.cur.value === n.value;
-      font(ctx, 54 * L.s, n.done || active || n.value === hi);
+      font(ctx, (n.value > 9 ? 42 : 54) * L.s, n.done || active || n.value === hi);
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       // 垫一圈纸色，线从数字上掠过时仍看得清
       ctx.lineWidth = 5 * L.s + 1; ctx.lineJoin = 'round'; ctx.strokeStyle = T.paper;

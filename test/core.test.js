@@ -23,12 +23,13 @@ function drag(g, pts) {
   }
   return res;
 }
+const range = (n) => Array.from({ length: n }, (_, i) => i + 1);
 const std = () => board([[1, 100, 300], [1, 500, 300], [2, 100, 500], [2, 500, 500], [3, 300, 100], [3, 300, 700], [4, 600, 800], [4, 650, 900]]);
 
 test('布局：每个数字恰好两枚，同种子同布局，间距足够', () => {
   for (let pairs = C.MIN_PAIRS; pairs <= C.MAX_PAIRS; pairs++) {
     for (let seed = 1; seed <= 40; seed++) {
-      const a = makeLayout(seed, pairs), b = makeLayout(seed, pairs);
+      const a = makeLayout(seed, range(pairs)), b = makeLayout(seed, range(pairs));
       assert.deepStrictEqual(a, b);
       assert.strictEqual(a.length, pairs * 2);
       const cnt = {};
@@ -37,12 +38,54 @@ test('布局：每个数字恰好两枚，同种子同布局，间距足够', ()
       for (let i = 0; i < a.length; i++) {
         assert.ok(a[i].x >= C.MARGIN && a[i].x <= C.W - C.MARGIN && a[i].y >= C.MARGIN && a[i].y <= C.H - C.MARGIN);
         for (let j = i + 1; j < a.length; j++) {
-          assert.ok(Math.hypot(a[i].x - a[j].x, a[i].y - a[j].y) >= C.R * 2 + C.INK * 4);
+          assert.ok(Math.hypot(a[i].x - a[j].x, a[i].y - a[j].y) >= C.MIN_GAP);
         }
       }
     }
   }
-  assert.notDeepStrictEqual(makeLayout(1, 6), makeLayout(2, 6));
+  assert.notDeepStrictEqual(makeLayout(1, range(6)), makeLayout(2, range(6)));
+});
+
+test('数字自定义：自选的数字各出现两枚；非法设置回落到默认', () => {
+  const g = new Game({ seed: 9, values: [3, 7, 12, 20], first: 0 });
+  assert.deepStrictEqual(g.numbers.map(n => n.value).sort((a, b) => a - b), [3, 3, 7, 7, 12, 12, 20, 20]);
+  assert.strictEqual(g.numbers[g.partner(0)].value, g.numbers[0].value);
+  assert.deepStrictEqual(C.cleanValues([12, 3, '7', 3, 0, 'x']), [3, 7, 12]);
+  assert.deepStrictEqual(C.cleanValues([5]), [1, 2, 3, 4, 5, 6]);
+  assert.deepStrictEqual(C.cleanValues('oops'), [1, 2, 3, 4, 5, 6]);
+  assert.strictEqual(C.cleanValues(range(11)).length, 6);
+  assert.strictEqual(C.cleanInk(12), 12);
+  assert.strictEqual(C.cleanInk(7), C.INK);
+  assert.strictEqual(C.describeValues([1, 2, 3, 4, 5, 6]), '1 – 6');
+  assert.strictEqual(C.describeValues([3, 7, 12]), '3、7、12');
+});
+
+test('线条粗细：判定跟着线宽走', () => {
+  // 旧线有一段沿 y=300，新线在 y=310 与它平行（中心距 10）
+  const run = (ink) => {
+    const g = board([[1, 200, 400], [1, 500, 400], [2, 260, 340], [2, 440, 340], [3, 100, 700], [3, 600, 700]]);
+    g.ink = ink; g.ink2 = ink * ink; g.edge = ink / 2; g.ring2 = (C.R + ink / 2) ** 2; g.selfSkip = ink * C.SELF_SKIP_INK;
+    g.begin(0, 200, 400); drag(g, [[200, 400], [200, 300], [500, 300], [500, 400]]);
+    g.begin(2, 260, 330);
+    return drag(g, [[260, 330], [260, 310], [440, 310]]);
+  };
+  assert.strictEqual(run(5), 'done');  // 细线：中间还有缝
+  assert.strictEqual(run(8), 'done');
+  assert.strictEqual(run(12), 'old');  // 粗线：墨迹已经碰上
+  for (const ink of C.INK_OPTIONS) {
+    const g = new Game({ seed: 3, values: [1, 2], ink, first: 0 });
+    assert.strictEqual(g.ink, ink);
+    // 笔尖贴不到纸边以外：最多到半个线宽处
+    const n = g.numbers[0];
+    g.begin(0, n.x, n.y); g.extend(-50, n.y);
+    const line = g.cur || g.failed || g.strokes[0];
+    assert.ok(line.pts.every((v) => v >= ink / 2));
+  }
+  // 连通性判断同样随线宽变化：20 宽的缺口，细线能钻，粗线钻不过
+  const nums = [{ id: 0, value: 3, x: 300, y: 300, done: false }, { id: 1, value: 3, x: 600, y: 800, done: false }];
+  const ring = { pts: [240, 240, 360, 240, 360, 360, 240, 360, 240, 260] };
+  assert.strictEqual(connectableValues(nums, [ring], 5).size, 1);
+  assert.strictEqual(connectableValues(nums, [ring], 12).size, 0);
 });
 
 test('连成换人：笔尖抵达同号目标即收笔，线留在纸上', () => {

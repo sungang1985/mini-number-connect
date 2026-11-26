@@ -4,19 +4,28 @@ const { dist2PointSeg, clamp } = require('./geom');
 const { makeLayout } = require('./layout');
 const { connectableValues } = require('./reach');
 
-const INK2 = C.INK * C.INK;
 const R2 = C.R * C.R;
-const RING = C.R + C.INK / 2; // 墨线中心离已连数字的圆心这么近，墨迹就碰到了圈
-const RING2 = RING * RING;
 
 // 一局游戏的全部规则。不依赖任何平台 API：
 // 同一种子 + 同一串输入点，在任何设备上得到同一结果，好友房两端各跑一份即可。
 class Game {
   constructor(opts) {
     this.seed = opts.seed >>> 0;
-    this.pairs = opts.pairs || C.DEFAULT_PAIRS;
+    // 纸上的数字可以自选；没给就用 1..pairs
+    let values = opts.values;
+    if (!values) {
+      values = [];
+      for (let v = 1; v <= (opts.pairs || C.DEFAULT_PAIRS); v++) values.push(v);
+    }
+    this.values = values.slice();
+    // 线宽每局固定，所有判定都跟着它走
+    this.ink = opts.ink || C.INK;
+    this.ink2 = this.ink * this.ink;
+    this.edge = this.ink / 2;                                      // 笔尖离纸边的最小距离
+    this.ring2 = (C.R + this.ink / 2) * (C.R + this.ink / 2);      // 墨线中心离已连数字圆心这么近，墨迹就碰到了圈
+    this.selfSkip = this.ink * C.SELF_SKIP_INK;
     this.first = opts.first ? 1 : 0;
-    this.numbers = makeLayout(this.seed, this.pairs);
+    this.numbers = makeLayout(this.seed, this.values);
     this.strokes = [];      // 已连成的线 {player, value, pts:[x0,y0,x1,y1,...]}
     this.turn = this.first; // 0 或 1
     this.phase = 'select';  // select 选数 | draw 正式起笔后 | over 结束
@@ -47,7 +56,7 @@ class Game {
     for (let s = 0; s < this.strokes.length; s++) {
       const p = this.strokes[s].pts;
       for (let k = 0; k + 3 < p.length; k += 2) {
-        if (dist2PointSeg(px, py, p[k], p[k + 1], p[k + 2], p[k + 3]) <= INK2) return true;
+        if (dist2PointSeg(px, py, p[k], p[k + 1], p[k + 2], p[k + 3]) <= this.ink2) return true;
       }
     }
     return false;
@@ -58,7 +67,7 @@ class Game {
     for (const n of this.numbers) {
       if (!n.done) continue;
       const dx = px - n.x, dy = py - n.y;
-      if (dx * dx + dy * dy <= RING2) return true;
+      if (dx * dx + dy * dy <= this.ring2) return true;
     }
     return false;
   }
@@ -70,7 +79,7 @@ class Game {
     if (!n || n.done) return 'done';
     const dx = x - n.x, dy = y - n.y;
     if (dx * dx + dy * dy > R2) return 'far';
-    if (x < C.EDGE || y < C.EDGE || x > C.W - C.EDGE || y > C.H - C.EDGE) return 'far';
+    if (x < this.edge || y < this.edge || x > C.W - this.edge || y > C.H - this.edge) return 'far';
     if (this.touchesOld(x, y) || this.touchesRing(x, y)) return 'ink';
     return null;
   }
@@ -93,7 +102,7 @@ class Game {
     if (this.touchesOld(px, py)) return 'old';
     if (this.touchesRing(px, py)) return 'ring';
     const c = this.cur, p = c.pts, arc = c.arc;
-    const limit = s - C.SELF_SKIP;
+    const limit = s - this.selfSkip;
     for (let i = 0; i + 1 < arc.length; i++) {
       if (arc[i] >= limit) break;
       const ax = p[2 * i], ay = p[2 * i + 1];
@@ -102,7 +111,7 @@ class Game {
         const f = (limit - arc[i]) / (arc[i + 1] - arc[i]);
         bx = ax + (bx - ax) * f; by = ay + (by - ay) * f;
       }
-      if (dist2PointSeg(px, py, ax, ay, bx, by) <= INK2) return 'self';
+      if (dist2PointSeg(px, py, ax, ay, bx, by) <= this.ink2) return 'self';
     }
     return null;
   }
@@ -118,8 +127,8 @@ class Game {
   extend(x, y) {
     if (this.phase !== 'draw') return 'ignored';
     const c = this.cur, p = c.pts, n = p.length;
-    x = clamp(Math.round(x), C.EDGE, C.W - C.EDGE);
-    y = clamp(Math.round(y), C.EDGE, C.H - C.EDGE);
+    x = clamp(Math.round(x), this.edge, C.W - this.edge);
+    y = clamp(Math.round(y), this.edge, C.H - this.edge);
     const ax = p[n - 2], ay = p[n - 1];
     const dx = x - ax, dy = y - ay;
     const len = Math.sqrt(dx * dx + dy * dy);
@@ -178,7 +187,7 @@ class Game {
     this.turn = 1 - this.turn;
     this.phase = 'select';
     // 只有所有剩余数对都确实无路可走，才直接判当前玩家无法完成
-    if (connectableValues(this.numbers, this.strokes).size === 0) this._lose(this.turn, 'stuck', null);
+    if (connectableValues(this.numbers, this.strokes, this.ink).size === 0) this._lose(this.turn, 'stuck', null);
   }
 
   _lose(player, reason, mark) {

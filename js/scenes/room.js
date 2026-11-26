@@ -1,5 +1,8 @@
 'use strict';
+const C = require('../core/consts');
 const { T, text, button, paragraph } = require('../ui');
+
+const INK_NAMES = ['细', '中', '粗'];
 
 // 好友房等候页：房主等好友进来，或好友正在加入
 class Room {
@@ -7,7 +10,8 @@ class Room {
     this.app = app;
     this.hosting = o.hosting;
     this.roomId = o.roomId || null;
-    this.pairs = o.pairs;
+    this.values = o.values;
+    this.ink = o.ink;
     this.timed = o.timed;
   }
   touchStart() {}
@@ -30,7 +34,7 @@ class Room {
       y += 44;
       text(ctx, this.roomId.split('').join(' '), cx, y, { size: 44, bold: true, color: T.pens[0], align: 'center' });
       y += 50;
-      text(ctx, '1 – ' + this.pairs + ' · ' + (this.timed ? '每手限时 60 秒' : '不限时，慢慢画'), cx, y, { size: 14, color: T.muted, align: 'center' });
+      text(ctx, '数字 ' + C.describeValues(this.values) + ' · ' + INK_NAMES[C.INK_OPTIONS.indexOf(this.ink)] + '线 · ' + (this.timed ? '每手 60 秒' : '不限时'), cx, y, { size: 14, color: T.muted, align: 'center' });
       y += 26;
       text(ctx, '等好友进来就开局，谁先画随机决定 ' + dots, cx, y, { size: 14, color: T.muted, align: 'center' });
       y += 44;

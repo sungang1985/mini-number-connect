@@ -9,9 +9,9 @@ const { dist2PointSeg } = require('./geom');
 const CELL = 2;
 const COLS = C.W / CELL, ROWS = C.H / CELL;
 
-function buildLabels(numbers, strokes) {
+function buildLabels(numbers, strokes, ink) {
   const blocked = new Uint8Array(COLS * ROWS);
-  const thr = C.INK - CELL * 0.7072;
+  const thr = ink - CELL * 0.7072;
   const thr2 = thr * thr;
   for (let s = 0; s < strokes.length; s++) {
     const p = strokes[s].pts;
@@ -30,7 +30,7 @@ function buildLabels(numbers, strokes) {
     }
   }
   // 已连成的数字外围的圈同样挡线
-  const rr = C.R + C.INK / 2 - CELL * 0.7072;
+  const rr = C.R + ink / 2 - CELL * 0.7072;
   for (const n of numbers) {
     if (!n.done) continue;
     const a0 = Math.max(0, Math.floor((n.x - rr) / CELL)), a1 = Math.min(COLS - 1, Math.floor((n.x + rr) / CELL));
@@ -43,7 +43,7 @@ function buildLabels(numbers, strokes) {
     }
   }
   // 笔尖到不了的纸边窄条同样算堵死
-  const e = Math.floor(C.EDGE / CELL);
+  const e = Math.floor(ink / 2 / CELL);
   for (let j = 0; j < ROWS; j++) {
     for (let i = 0; i < COLS; i++) {
       if (i < e || j < e || i >= COLS - e || j >= ROWS - e) blocked[j * COLS + i] = 1;
@@ -93,8 +93,8 @@ function discLabels(labels, num) {
 }
 
 // 返回仍可能连通的数字值集合
-function connectableValues(numbers, strokes) {
-  const labels = buildLabels(numbers, strokes);
+function connectableValues(numbers, strokes, ink) {
+  const labels = buildLabels(numbers, strokes, ink || C.INK);
   const byValue = {};
   for (const n of numbers) if (!n.done) (byValue[n.value] = byValue[n.value] || []).push(n);
   const out = new Set();

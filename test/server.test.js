@@ -37,7 +37,7 @@ test('好友房：开房、加入、同步笔迹、再来一局、离开', async
   b.send({ t: 'join', id: '0000' });
   assert.deepStrictEqual(await b.next(), { t: 'err', code: 'noroom' });
 
-  a.send({ t: 'create', pairs: 6, timed: true });
+  a.send({ t: 'create', values: [12, 3, 7], ink: 12, timed: true });
   const room = await a.next();
   assert.strictEqual(room.t, 'room');
   assert.match(room.id, /^\d{4}$/);
@@ -45,7 +45,8 @@ test('好友房：开房、加入、同步笔迹、再来一局、离开', async
   b.send({ t: 'join', id: room.id });
   const sa = await a.next(), sb = await b.next();
   assert.deepStrictEqual([sa.t, sa.seat, sb.t, sb.seat], ['start', 0, 'start', 1]);
-  assert.deepStrictEqual([sa.seed, sa.first, sa.pairs, sa.timed], [sb.seed, sb.first, 6, true]);
+  assert.deepStrictEqual([sa.seed, sa.first, sa.values, sa.ink, sa.timed], [sb.seed, sb.first, [3, 7, 12], 12, true]);
+  assert.deepStrictEqual(sb.values, sa.values);
 
   c.send({ t: 'join', id: room.id });
   assert.deepStrictEqual(await c.next(), { t: 'err', code: 'full' });
