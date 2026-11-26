@@ -90,19 +90,42 @@ test('撞线：交叉旧线立即判负，叉号标在首次接触处', () => {
   assert.ok(g.failed);
 });
 
-test('贴线通过 / 相切判负', () => {
-  // 旧线 y=300。新线与它平行：中心距 INK+1 时两笔墨迹之间仍有缝，可过；恰为 INK 时相切，判负
+test('已连数字的圈挡线：穿圈判负，贴圈外侧可过；未连数字的圈不挡', () => {
   const mk = () => {
-    const g = board([[1, 200, 300], [1, 500, 300], [2, 100, 320], [2, 620, 320], [3, 100, 700], [3, 600, 700]]);
+    const g = board([[1, 200, 300], [1, 500, 300], [2, 100, 100], [2, 650, 100], [3, 100, 600], [3, 600, 600]]);
     g.begin(0, 200, 300); drag(g, [[200, 300], [500, 300]]);
     return g;
   };
+  const edge = C.R + C.INK / 2;
   let g = mk();
-  g.begin(2, 100, 300 + C.INK + 1);
-  assert.strictEqual(drag(g, [[100, 309], [620, 309]]), 'done');
+  g.begin(2, 100, 100);
+  assert.strictEqual(drag(g, [[100, 100], [200, 100], [200, 400]]), 'ring'); // 直穿已连的 1
+  assert.strictEqual(g.result.reason, 'ring');
+  assert.ok(Math.abs(g.result.mark.y - (300 - edge)) < 1e-3);
   g = mk();
-  g.begin(2, 100, 300 + C.INK);
-  assert.strictEqual(drag(g, [[100, 308], [620, 308]]), 'old');
+  g.begin(2, 100, 100);                                   // 擦着圈的最高点：墨迹刚好碰到圈
+  assert.strictEqual(drag(g, [[100, 100], [100, 300 - edge], [300, 300 - edge]]), 'ring');
+  g = mk();
+  g.begin(2, 100, 100);                                   // 再让开 1 个单位就能过
+  assert.strictEqual(drag(g, [[100, 100], [100, 300 - edge - 1], [150, 300 - edge - 1]]), 'ok');
+  g = mk();
+  g.begin(2, 100, 100);                                   // 3 还没连，从它上面掠过没事
+  assert.strictEqual(drag(g, [[100, 100], [60, 100], [60, 600], [300, 600]]), 'ok');
+});
+
+test('贴线通过 / 相切判负', () => {
+  // 旧线有一段沿 y=300。新线与它平行：中心距 INK+1 时两笔墨迹之间仍有缝，可过；恰为 INK 时相切，判负
+  const mk = () => {
+    const g = board([[1, 200, 400], [1, 500, 400], [2, 260, 340], [2, 440, 340], [3, 100, 700], [3, 600, 700]]);
+    g.begin(0, 200, 400);
+    assert.strictEqual(drag(g, [[200, 400], [200, 300], [500, 300], [500, 400]]), 'done');
+    g.begin(2, 260, 330);
+    return g;
+  };
+  assert.strictEqual(drag(mk(), [[260, 330], [260, 300 + C.INK + 1], [440, 300 + C.INK + 1]]), 'done');
+  const g = mk();
+  assert.strictEqual(drag(g, [[260, 330], [260, 300 + C.INK], [440, 300 + C.INK]]), 'old');
+  assert.ok(Math.abs(g.result.mark.y - (300 + C.INK)) < 1e-3);
 });
 
 test('能绕过线头就能连；自己上一轮的旧线同样算旧线', () => {
@@ -198,6 +221,11 @@ test('无路可连（直接检验连通性判断）', () => {
   // 再把 2 也隔开
   const wall = { pts: [4, 850, 716, 850] };
   assert.deepStrictEqual([...connectableValues(nums, [ring(C.INK + 3), wall])], []);
+  // 已连数字的圈把仅剩的通道堵住
+  const post = { id: 4, value: 1, x: 716 - 30, y: 850, done: true };
+  const gapWall = { pts: [4, 850, 716 - 70, 850] };
+  assert.deepStrictEqual([...connectableValues(nums, [ring(C.INK + 3), gapWall])], [2]);
+  assert.deepStrictEqual([...connectableValues(nums.concat([post]), [ring(C.INK + 3), gapWall])], []);
   // 贴着纸边留 2×INK+2 的缝则仍可通过
   assert.deepStrictEqual([...connectableValues(nums, [ring(C.INK + 3), { pts: [4 + 2 * C.INK + 2, 850, 716, 850] }])], [2]);
 });

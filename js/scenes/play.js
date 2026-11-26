@@ -89,7 +89,7 @@ class Play {
       if ((x - s.x) * (x - s.x) + (y - s.y) * (y - s.y) < C.STEP * C.STEP) return;
       // 拖动了：正式起笔
       if (g.startError(s.id, s.x, s.y)) {
-        this.app.toast('这里压着旧线，换到数字另一侧起笔');
+        this.app.toast('这里压着旧线或圈，换到数字另一侧起笔');
         this.pending = null;
         if (this.peek) this.peek.until = Date.now() + PEEK_MS;
         return;
@@ -250,13 +250,13 @@ class Play {
       }
     }
 
-    // 已连成的一对：外围的圈留在纸上，颜色跟连线的人
+    // 已连成的一对：外围的圈留在纸上并且挡线，颜色跟连线的人
     for (const n of g.numbers) {
       if (!n.done) continue;
       ctx.beginPath();
       ctx.arc(L.x + n.x * L.s, L.y + n.y * L.s, C.R * L.s, 0, Math.PI * 2);
       ctx.fillStyle = T.pensSoft[n.by]; ctx.fill();
-      ctx.lineWidth = 1; ctx.strokeStyle = T.pens[n.by]; ctx.stroke();
+      ctx.lineWidth = 1.5; ctx.strokeStyle = T.pens[n.by]; ctx.stroke();
     }
 
     // 墨线
@@ -289,7 +289,7 @@ class Play {
         ctx.moveTo(mx + r, my - r); ctx.lineTo(mx - r, my + r);
         ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.strokeStyle = color; ctx.stroke();
       };
-      const hits = g.result.reason === 'old' || g.result.reason === 'self';
+      const hits = g.result.reason === 'old' || g.result.reason === 'self' || g.result.reason === 'ring';
       cross(6, T.paper);
       cross(2.6, hits ? T.danger : T.ink);
     }
@@ -344,7 +344,7 @@ class Play {
     const y = L.barY + 6, pad = 16, btnW = 92;
     let hint;
     if (!this.isMine()) hint = g.phase === 'draw' ? '好友正在画，笔迹和你这边同步' : '好友正在挑数字…';
-    else if (g.phase === 'draw') hint = '一笔连到另一枚 ' + g.cur.value + '，碰线或抬手就输';
+    else if (g.phase === 'draw') hint = '一笔连到另一枚 ' + g.cur.value + '，碰线、碰圈或抬手就输';
     else hint = '点一枚数字看另一枚在哪；按住它拖动，一笔连过去';
     const lines = wrap(ctx, hint, app.w - pad * 2 - btnW - 12, 13.5, false);
     const lh = 20, ty = y + 36 - lines.length * lh / 2;
@@ -360,6 +360,7 @@ class Play {
     switch (r.reason) {
       case 'complete': return this.name(r.winner) + '连成了最后一对';
       case 'old': return who + '碰到了旧线';
+      case 'ring': return who + '碰到了已连数字的圈';
       case 'self': return who + '碰到了本笔画过的线';
       case 'lift': return who + '中途抬手了';
       case 'giveup': return who + '表示画不完';

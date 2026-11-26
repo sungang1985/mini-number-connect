@@ -6,6 +6,8 @@ const { connectableValues } = require('./reach');
 
 const INK2 = C.INK * C.INK;
 const R2 = C.R * C.R;
+const RING = C.R + C.INK / 2; // 墨线中心离已连数字的圆心这么近，墨迹就碰到了圈
+const RING2 = RING * RING;
 
 // 一局游戏的全部规则。不依赖任何平台 API：
 // 同一种子 + 同一串输入点，在任何设备上得到同一结果，好友房两端各跑一份即可。
@@ -51,6 +53,16 @@ class Game {
     return false;
   }
 
+  // 已连成的数字，外围的圈留在纸上并且挡线
+  touchesRing(px, py) {
+    for (const n of this.numbers) {
+      if (!n.done) continue;
+      const dx = px - n.x, dy = py - n.y;
+      if (dx * dx + dy * dy <= RING2) return true;
+    }
+    return false;
+  }
+
   // 能否从 (x,y) 起笔；返回 null 表示可以，否则给出原因
   startError(id, x, y) {
     if (this.phase !== 'select') return 'phase';
@@ -59,7 +71,7 @@ class Game {
     const dx = x - n.x, dy = y - n.y;
     if (dx * dx + dy * dy > R2) return 'far';
     if (x < C.EDGE || y < C.EDGE || x > C.W - C.EDGE || y > C.H - C.EDGE) return 'far';
-    if (this.touchesOld(x, y)) return 'ink';
+    if (this.touchesOld(x, y) || this.touchesRing(x, y)) return 'ink';
     return null;
   }
 
@@ -79,6 +91,7 @@ class Game {
   // 笔尖在 (px,py)、已画弧长 s 时，墨迹是否碰到了别的墨迹
   _touch(px, py, s) {
     if (this.touchesOld(px, py)) return 'old';
+    if (this.touchesRing(px, py)) return 'ring';
     const c = this.cur, p = c.pts, arc = c.arc;
     const limit = s - C.SELF_SKIP;
     for (let i = 0; i + 1 < arc.length; i++) {
@@ -101,7 +114,7 @@ class Game {
     c.arc.push(c.len);
   }
 
-  // 笔尖移到 (x,y)。返回 ok | done 连成 | old 碰旧线 | self 碰本笔 | ignored
+  // 笔尖移到 (x,y)。返回 ok | done 连成 | old 碰旧线 | ring 碰已连数字的圈 | self 碰本笔 | ignored
   extend(x, y) {
     if (this.phase !== 'draw') return 'ignored';
     const c = this.cur, p = c.pts, n = p.length;
