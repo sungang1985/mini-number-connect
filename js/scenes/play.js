@@ -250,6 +250,15 @@ class Play {
       }
     }
 
+    // 已连成的一对：外围的圈留在纸上，颜色跟连线的人
+    for (const n of g.numbers) {
+      if (!n.done) continue;
+      ctx.beginPath();
+      ctx.arc(L.x + n.x * L.s, L.y + n.y * L.s, C.R * L.s, 0, Math.PI * 2);
+      ctx.fillStyle = T.pensSoft[n.by]; ctx.fill();
+      ctx.lineWidth = 1; ctx.strokeStyle = T.pens[n.by]; ctx.stroke();
+    }
+
     // 墨线
     for (const st of g.strokes) this.strokePath(ctx, L, st.pts, T.pens[st.player]);
     const live = g.cur || g.failed;
